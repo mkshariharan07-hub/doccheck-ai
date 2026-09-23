@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -26,26 +26,54 @@ function readLastDocumentId(): string | null {
   }
 }
 
+let lastDocumentIdCache: string | null | undefined;
+const lastDocumentIdListeners = new Set<() => void>();
+
+function subscribeLastDocumentId(callback: () => void) {
+  lastDocumentIdListeners.add(callback);
+  return () => {
+    lastDocumentIdListeners.delete(callback);
+  };
+}
+
+function getLastDocumentIdSnapshot() {
+  const id = readLastDocumentId();
+  if (id !== lastDocumentIdCache) {
+    lastDocumentIdCache = id;
+    lastDocumentIdListeners.forEach((listener) => listener());
+  }
+  return lastDocumentIdCache ?? null;
+}
+
+function getLastDocumentIdServerSnapshot() {
+  return null;
+}
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const storedDocId = useSyncExternalStore(
+    subscribeLastDocumentId,
+    getLastDocumentIdSnapshot,
+    getLastDocumentIdServerSnapshot
+  );
 
   const lastDocumentId = useMemo(() => {
     const match = pathname.match(/\/(dashboard|editor|report|results)\/([^/]+)/);
     if (match && match[2]) return match[2];
-    return readLastDocumentId();
-  }, [pathname]);
+    return storedDocId;
+  }, [pathname, storedDocId]);
 
-  const documentPath = (route: string) =>
-    lastDocumentId ? `/${route}/${lastDocumentId}` : "/upload";
+  const documentHref = (route: string) =>
+    lastDocumentId ? `/${route}/${lastDocumentId}` : null;
 
   const navItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/upload", label: "Upload", icon: Upload },
-    { href: documentPath("dashboard"), label: "Dashboard", icon: LayoutDashboard },
-    { href: documentPath("editor"), label: "Editor", icon: FileEdit },
-    { href: documentPath("report"), label: "Report", icon: FileText },
-    { href: documentPath("results"), label: "Results", icon: Download },
+    { href: documentHref("dashboard"), label: "Dashboard", icon: LayoutDashboard },
+    { href: documentHref("editor"), label: "Editor", icon: FileEdit },
+    { href: documentHref("report"), label: "Report", icon: FileText },
+    { href: documentHref("results"), label: "Results", icon: Download },
   ];
 
   const isActive = (href: string) => {
@@ -85,34 +113,45 @@ export function Sidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link key={item.href} href={item.href}>
-              <motion.div
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  active
+          const active = item.href ? isActive(item.href) : false;
+          const inner = (
+            <motion.div
+              whileHover={item.href ? { x: 2 } : undefined}
+              whileTap={item.href ? { scale: 0.98 } : undefined}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                item.href
+                  ? active
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground/60 cursor-not-allowed select-none"
+              )}
+              title={item.href ? undefined : "Upload a document first"}
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              <AnimatePresence mode="wait">
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="whitespace-nowrap"
+                  >
+                    {item.label}
+                  </motion.span>
                 )}
-              >
-                <item.icon className="w-5 h-5 shrink-0" />
-                <AnimatePresence mode="wait">
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className="whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+              </AnimatePresence>
+            </motion.div>
+          );
+
+          if (!item.href) {
+            return <div key={item.label}>{inner}</div>;
+          }
+
+          return (
+            <Link key={item.label} href={item.href}>
+              {inner}
             </Link>
           );
         })}
