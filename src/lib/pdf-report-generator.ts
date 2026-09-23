@@ -1,0 +1,171 @@
+import { jsPDF } from "jspdf";
+import { AnalysisResult, Document } from "@/types";
+
+export function generateReportPdf(
+  document: Document,
+  analysis: AnalysisResult
+): Buffer {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const contentWidth = pageWidth - 2 * margin;
+  let y = margin;
+
+  const checkNewPage = (needed: number) => {
+    if (y + needed > doc.internal.pageSize.getHeight() - margin) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  const addTitle = (text: string) => {
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text(text, margin, y);
+    y += 10;
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+  };
+
+  const addSectionTitle = (text: string) => {
+    checkNewPage(18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text(text, margin, y);
+    y += 8;
+  };
+
+  const addText = (label: string, value: string) => {
+    checkNewPage(10);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(51, 65, 85);
+    doc.text(label, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    doc.text(value, margin + 45, y);
+    y += 6;
+  };
+
+  const addIssue = (issue: { originalText: string; message: string; suggestedFix: string | null; type: string }) => {
+    checkNewPage(20);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text(`[${issue.type.toUpperCase()}] ${issue.originalText}`, margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    const splitMsg = doc.splitTextToSize(issue.message, contentWidth);
+    doc.text(splitMsg, margin + 2, y);
+    y += splitMsg.length * 4;
+    if (issue.suggestedFix) {
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(34, 197, 94);
+      doc.text(`Suggestion: ${issue.suggestedFix}`, margin + 2, y);
+      y += 5;
+    }
+    y += 3;
+  };
+
+  // Header
+  addTitle("DocCheck AI — Document Analysis Report");
+
+  // Document Info
+  addSectionTitle("Document Information");
+  addText("File Name:", document.file_name);
+  addText("File Type:", document.file_type.toUpperCase());
+  addText("File Size:", `${(document.file_size / 1024).toFixed(1)} KB`);
+  addText("Analysis Date:", new Date().toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+  }));
+  y += 4;
+
+  // Document Statistics
+  addSectionTitle("Document Statistics");
+  addText("Word Count:", document.word_count.toString());
+  addText("Character Count:", document.char_count.toString());
+  addText("Paragraphs:", document.paragraph_count.toString());
+  y += 4;
+
+  // Issue Summary
+  addSectionTitle("Issue Summary");
+  addText("Total Issues:", analysis.total_issues.toString());
+  addText("Grammar Issues:", analysis.grammar_issues.toString());
+  addText("Spelling Issues:", analysis.spelling_issues.toString());
+  addText("Punctuation Issues:", analysis.punctuation_issues.toString());
+  addText("Style Issues:", analysis.style_issues.toString());
+  y += 4;
+
+  // Plagiarism Section
+  addSectionTitle("Plagiarism Check");
+  addText("Status:", analysis.plagiarism_status === "pending" ? "Not yet analyzed" : `${analysis.plagiarism_score}%`);
+  addText(
+    "Details:",
+    analysis.plagiarism_status === "pending" || analysis.plagiarism_score === null
+      ? "Connect a plagiarism detection API for real results."
+      : `${analysis.plagiarism_score}% of the content matches external sources.`
+  );
+  y += 4;
+
+  // AI Detection Section
+  addSectionTitle("AI Detection");
+  addText("Status:", analysis.ai_detection_status === "pending" ? "Not yet analyzed" : `${analysis.ai_detection_score}%`);
+  addText(
+    "Details:",
+    analysis.ai_detection_status === "pending" || analysis.ai_detection_score === null
+      ? "Connect an AI detection API for real results."
+      : `${analysis.ai_detection_score}% estimated likelihood of AI-generated content.`
+  );
+  y += 4;
+
+  // Detailed Findings
+  if (analysis.issues.length > 0) {
+    addSectionTitle("Detailed Findings");
+    analysis.issues.forEach((issue) => {
+      addIssue(issue);
+    });
+  }
+
+  // Corrections Applied
+  if (analysis.corrections_applied.length > 0) {
+    checkNewPage(20);
+    addSectionTitle("Corrections Applied");
+    analysis.corrections_applied.forEach((c, i) => {
+      checkNewPage(10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${i + 1}. "${c.originalText}" → "${c.correctedText}"`, margin, y);
+      y += 5;
+    });
+  }
+
+  // Footer
+  checkNewPage(15);
+  y = doc.internal.pageSize.getHeight() - 15;
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text(
+    "Generated by DocCheck AI — This report is for informational purposes only.",
+    pageWidth / 2,
+    y,
+    { align: "center" }
+  );
+
+  const buffer = Buffer.from(doc.output("arraybuffer"));
+  return buffer;
+}
+
+export function getReportFileName(documentName: string): string {
+  const name = documentName.replace(/\.[^/.]+$/, "");
+  return `${name}_analysis_report.pdf`;
+}
