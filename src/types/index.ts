@@ -65,16 +65,18 @@ export interface Report {
   generated_at: string;
 }
 
+export interface DetectionStatus {
+  status: "pending" | "not_checked" | "checked";
+  score: number | null;
+  details: unknown;
+}
+
 export interface PlagiarismService {
-  check(
-    text: string
-  ): Promise<{ status: string; score: number | null; details: null }>;
+  check(text: string): Promise<DetectionStatus>;
 }
 
 export interface AIDetectionService {
-  detect(
-    text: string
-  ): Promise<{ status: string; score: number | null; details: null }>;
+  detect(text: string): Promise<DetectionStatus>;
 }
 
 export interface UploadResponse {

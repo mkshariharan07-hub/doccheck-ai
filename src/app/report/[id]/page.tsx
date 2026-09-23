@@ -268,13 +268,15 @@ export default function ReportPage() {
               <Separator className="mb-4" />
               <div className="text-center py-4">
                 <p className="text-sm text-muted-foreground">
-                  {analysis.plagiarism_status === "pending"
-                    ? "Not yet analyzed"
-                    : `Score: ${analysis.plagiarism_score}%`}
+                  {analysis.plagiarism_status === "checked"
+                    ? `Score: ${analysis.plagiarism_score}%`
+                    : analysis.plagiarism_status === "not_checked"
+                      ? "Not checked"
+                      : "Not yet analyzed"}
                 </p>
-                {analysis.plagiarism_status === "pending" && (
+                {analysis.plagiarism_status === "not_checked" && (
                   <p className="text-xs text-muted-foreground mt-2 italic">
-                    Connect a plagiarism API for real results
+                    Set the PREPOSTSEO_API_KEY environment variable to enable
                   </p>
                 )}
               </div>
@@ -297,13 +299,15 @@ export default function ReportPage() {
               <Separator className="mb-4" />
               <div className="text-center py-4">
                 <p className="text-sm text-muted-foreground">
-                  {analysis.ai_detection_status === "pending"
-                    ? "Not yet analyzed"
-                    : `Score: ${analysis.ai_detection_score}%`}
+                  {analysis.ai_detection_status === "checked"
+                    ? `Score: ${analysis.ai_detection_score}%`
+                    : analysis.ai_detection_status === "not_checked"
+                      ? "Not checked"
+                      : "Not yet analyzed"}
                 </p>
-                {analysis.ai_detection_status === "pending" && (
+                {analysis.ai_detection_status === "not_checked" && (
                   <p className="text-xs text-muted-foreground mt-2 italic">
-                    Connect an AI detection API for real results
+                    Set the AI_DETECTION_API_KEY environment variable to enable
                   </p>
                 )}
               </div>

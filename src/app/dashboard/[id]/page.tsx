@@ -127,22 +127,28 @@ export default function DashboardPage() {
     {
       icon: Shield,
       label: "Plagiarism",
-      value: analysis?.plagiarism_status === "pending"
-        ? "Pending"
-        : `${analysis?.plagiarism_score ?? 0}%`,
+      value:
+        analysis?.plagiarism_status === "checked"
+          ? `${analysis?.plagiarism_score ?? 0}%`
+          : analysis?.plagiarism_status === "not_checked"
+            ? "No key"
+            : "Pending",
       color: "text-purple-500",
       bg: "bg-purple-500/10",
-      isPlaceholder: analysis?.plagiarism_status === "pending",
+      isPlaceholder: analysis?.plagiarism_status !== "checked",
     },
     {
       icon: Bot,
       label: "AI Detection",
-      value: analysis?.ai_detection_status === "pending"
-        ? "Pending"
-        : `${analysis?.ai_detection_score ?? 0}%`,
+      value:
+        analysis?.ai_detection_status === "checked"
+          ? `${analysis?.ai_detection_score ?? 0}%`
+          : analysis?.ai_detection_status === "not_checked"
+            ? "No key"
+            : "Pending",
       color: "text-indigo-500",
       bg: "bg-indigo-500/10",
-      isPlaceholder: analysis?.ai_detection_status === "pending",
+      isPlaceholder: analysis?.ai_detection_status !== "checked",
     },
   ];
 
@@ -226,7 +232,7 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground">{stat.label}</p>
               {stat.isPlaceholder && (
                 <p className="text-[10px] text-muted-foreground mt-1 italic">
-                  Connect API for real results
+                  Add API key to enable
                 </p>
               )}
             </AnimatedCard>
@@ -288,7 +294,7 @@ export default function DashboardPage() {
         </Tabs>
       </AnimatedCard>
 
-      {/* Plagiarism & AI Detection Placeholders */}
+      {/* Plagiarism & AI Detection */}
       <div className="grid md:grid-cols-2 gap-4 mt-6">
         <AnimatedCard delay={0.3} hover={false} className="p-6">
           <div className="flex items-center gap-3 mb-3">
@@ -298,13 +304,17 @@ export default function DashboardPage() {
             <div>
               <h3 className="font-semibold">Plagiarism Check</h3>
               <p className="text-xs text-muted-foreground">
-                Not yet analyzed
+                {analysis?.plagiarism_status === "checked"
+                  ? `${analysis.plagiarism_score}% matched content`
+                  : analysis?.plagiarism_status === "not_checked"
+                    ? "Set the PREPOSTSEO_API_KEY environment variable to enable"
+                    : "Checking..."}
               </p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Connect a plagiarism detection API to enable this feature. The
-            service interface is ready for integration.
+            Scans your document against web sources in chunks of up to 2,000
+            words and reports the share of matched content.
           </p>
         </AnimatedCard>
 
@@ -316,13 +326,17 @@ export default function DashboardPage() {
             <div>
               <h3 className="font-semibold">AI Detection</h3>
               <p className="text-xs text-muted-foreground">
-                Not yet analyzed
+                {analysis?.ai_detection_status === "checked"
+                  ? `${analysis.ai_detection_score}% likely AI-generated`
+                  : analysis?.ai_detection_status === "not_checked"
+                    ? "Set the AI_DETECTION_API_KEY environment variable to enable"
+                    : "Checking..."}
               </p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Connect an AI content detection API to enable this feature. The
-            service interface is ready for integration.
+            Estimates how much of the document reads as AI-generated using a
+            content detection API.
           </p>
         </AnimatedCard>
       </div>
